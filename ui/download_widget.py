@@ -224,22 +224,28 @@ class DownloadWidget(QWidget):
         login_failed_error_code = login_failed.read_vint()
 
         if login_failed_error_code == 7:
-            fingerprint = login_failed.read_string()
+            login_failed.read_string()
 
             login_failed.read_string()
             login_failed.read_string()
             login_failed.read_string()
             login_failed.read_vint()
-            login_failed.read_byte()
+            login_failed.read_vint()
             login_failed.read_string()
 
             assets_host_count = login_failed.read_vint()
 
             if assets_host_count:
-                self.assets_host = login_failed.read_string()
+                for _ in range(assets_host_count):
+                    self.assets_host = login_failed.read_string()
 
             else:
                 return build_alert_box('Download error', 'Couldn\'t find any host to download assets !')
+
+            login_failed.read_string()
+            login_failed.read_byte()
+
+            fingerprint = login_failed.read_compressed_string()
 
         elif login_failed_error_code == 8:
             reply = QMessageBox.question(
@@ -285,6 +291,7 @@ class DownloadWidget(QWidget):
 
         download_choice_windows = DownloadChoiceWindow(self, files_extension)
         download_choice_windows.show()
+
     def request_login_failed(self):
         client_hello_writer = Writer()
 

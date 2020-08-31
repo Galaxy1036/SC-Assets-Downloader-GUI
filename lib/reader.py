@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import zlib
 
 from io import BytesIO
 
@@ -38,3 +39,10 @@ class Reader(BytesIO):
 
         if length != 0xffffffff:
             return self.read(length).decode('utf-8')
+
+    def read_compressed_string(self):
+        length = self.read_int()
+
+        if length != 0xffffffff:
+            zlength = int.from_bytes(self.read(4), 'little')
+            return zlib.decompress(self.read(length - 4), 15, zlength).decode('utf-8')
