@@ -401,7 +401,7 @@ class DownloadWidget(QWidget):
         self.downloaded_files += 1
 
         if update_status:
-            self.progress_bar.setValue(self.downloaded_files / self.total_files * 100)
+            self.progress_bar.setValue(int(self.downloaded_files / self.total_files * 100))
             self.parent.status_bar_label.setText('Download started with {} workers, {}/{} files downloaded !'.format(self.workers_count,
                                                                                                                      self.downloaded_files,
                                                                                                                      self.total_files))
