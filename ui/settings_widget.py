@@ -46,6 +46,11 @@ class SettingsWidget(QWidget):
         self.workers_spinbox.setRange(1, 10)
         self.workers_spinbox.setValue(max(min(self.config['workers_count'], 10), 1))
 
+        self.retries_spinbox = QSpinBox()
+
+        self.retries_spinbox.setRange(1, 10)
+        self.retries_spinbox.setValue(max(self.config['max_retries'], 0))
+
         self.save_settings_button = QPushButton('Save settings', self)
         self.save_settings_button.setIcon(QIcon('ui/assets/save.png'))
         self.save_settings_button.setIconSize(QSize(17, 17))
@@ -55,6 +60,8 @@ class SettingsWidget(QWidget):
         self.main_layout.addWidget(self.browse_folder_widget)
         self.main_layout.addWidget(QLabel('Workers count (up to 10):'))
         self.main_layout.addWidget(self.workers_spinbox)
+        self.main_layout.addWidget(QLabel('Max retries:'))
+        self.main_layout.addWidget(self.retries_spinbox)
         self.main_layout.addWidget(self.save_settings_button)
 
         self.setLayout(self.main_layout)
@@ -66,5 +73,6 @@ class SettingsWidget(QWidget):
 
     def save_settings(self):
         self.config['workers_count'] = self.workers_spinbox.value()
+        self.config['max_retries'] = self.retries_spinbox.value()
 
         self.parent.save_config()

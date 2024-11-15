@@ -1,7 +1,8 @@
 {
     "workers_count": 4,
+    "max_retries": 0,
     "output_path": "output",
-    "major": 7,
-    "build": 288,
-    "minor": 38
+    "major": 8,
+    "build": 256,
+    "minor": 37
 }

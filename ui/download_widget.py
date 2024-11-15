@@ -222,6 +222,11 @@ class DownloadWidget(QWidget):
 
         download_method = self.download_method_combo_box.currentText()
 
+        if login_failed == False:
+            self.parent.hide_loading()
+            self.parent.status_bar_label.setText('Connection error: couldn\'t connect to Supercell servers')
+            return build_alert_box('Connection error', 'An error occured when connecting to Supercell\'s servers. Please check the console and/or your internet connection!')
+
         login_failed_error_code = login_failed.read_vint()
 
         if login_failed_error_code == 7:
@@ -241,6 +246,8 @@ class DownloadWidget(QWidget):
                     self.assets_host = login_failed.read_string()
 
             else:
+                self.parent.hide_loading()
+                self.parent.status_bar_label.setText('Couldn\'t find any host to download assets !')
                 return build_alert_box('Download error', 'Couldn\'t find any host to download assets !')
 
             login_failed.read_string()
@@ -261,9 +268,13 @@ class DownloadWidget(QWidget):
             return
 
         elif login_failed_error_code == 10:
+            self.parent.hide_loading()
+            self.parent.status_bar_label.setText('Server is in maintenance, cannot fetch current info')
             return build_alert_box('Error', 'Server is in maintenance, cannot fetch current info')
 
         else:
+            self.parent.hide_loading()
+            self.parent.status_bar_label.setText('Wrong login failed code: {}'.format(login_failed_error_code))
             return build_alert_box('Error', 'Wrong login failed code: {}'.format(login_failed_error_code))
 
         if download_method == 'Latest Patch':
@@ -310,20 +321,24 @@ class DownloadWidget(QWidget):
 
         client_hello = (10100).to_bytes(2, 'big') + len(client_hello_writer.buffer).to_bytes(3, 'big') + bytes(2) + client_hello_writer.buffer
 
-        s = socket.create_connection(('game.clashroyaleapp.com', 9339))
-        s.send(client_hello)
+        try:
+            s = socket.create_connection(('game.clashroyaleapp.com', 9339))
+            s.send(client_hello)
 
-        header = s.recv(7)
-        message_length = int.from_bytes(header[2:5], 'big')
+            header = s.recv(7)
+            message_length = int.from_bytes(header[2:5], 'big')
 
-        login_failed = b''
+            login_failed = b''
 
-        while message_length:
-            data = s.recv(message_length)
-            message_length -= len(data)
-            login_failed += data
+            while message_length:
+                data = s.recv(message_length)
+                message_length -= len(data)
+                login_failed += data
 
-        return Reader(login_failed)
+            return Reader(login_failed)
+        except Exception as e:
+            print(e)
+            return False
 
     def update_client_hello_version(self):
         self.start_button.setEnabled(False)
@@ -354,7 +369,7 @@ class DownloadWidget(QWidget):
         self.worker_launcher.stop()
         self.worker_launcher.quit()
 
-        self.on_donwload_finish()
+        self.on_download_finish()
 
     def on_masterhash_changed(self, masterhash):
         if not is_masterhash_valid(masterhash):
@@ -369,6 +384,7 @@ class DownloadWidget(QWidget):
         self.downloaded_files = 0
         self.download_start_time = datetime.utcnow()
         self.download_queue = Queue()
+        self.downloading = True
 
         overwrite_existing_file = False
 
@@ -396,7 +412,7 @@ class DownloadWidget(QWidget):
         self.worker_launcher = WorkerLauncher(self)
 
         self.worker_launcher.file_downloaded.connect(self.update_download_count)
-        self.worker_launcher.download_finished.connect(self.on_donwload_finish)
+        self.worker_launcher.download_finished.connect(self.on_download_finish)
 
         self.worker_launcher.start()
 
@@ -409,26 +425,33 @@ class DownloadWidget(QWidget):
                                                                                                                      self.downloaded_files,
                                                                                                                      self.total_files))
 
-    def on_donwload_finish(self):
+    def on_download_finish(self, success = True):
         self.parent.hide_loading()
         self.download_method_combo_box.setEnabled(True)
 
         if self.downloaded_files:
             elapsed_time = (datetime.utcnow() - self.download_start_time).seconds
-
-            self.parent.status_bar_label.setText('''Download finished ! {} files downloaded in {}min {}s'''.format(self.downloaded_files,
-                                                                                                                   *divmod(elapsed_time, 60)))
-
+            
+            if success == True:
+                self.parent.status_bar_label.setText('''Download finished ! {} files downloaded in {}min {}s'''.format(self.downloaded_files,
+                                                                                                                    *divmod(elapsed_time, 60)))
+            else:
+                self.parent.status_bar_label.setText('''Download failed ! {} files downloaded in {}min {}s'''.format(self.downloaded_files,
+                                                                                                                    *divmod(elapsed_time, 60)))
+                if self.downloading == True:
+                    build_alert_box("Max retries reached", "Check your internet connection, and/or increase the max retries in the Settings.")
+            
         else:
             self.parent.status_bar_label.setText('No files were downloaded !')
 
+        self.downloading = False
         self.progress_bar.reset()
         self.stop_button.setEnabled(False)
         self.start_button.setEnabled(True)
 
     def display_bruteforce_info(self):
         self.parent.status_bar_label.setText('Bruteforce started ! Trying with major {}, build {}, minor {}'.format(self.major, self.build, self.minor))
-
+    
 
 class InfoFetcherThread(QThread):
     info_fetched = pyqtSignal(object)
